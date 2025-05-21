@@ -51,7 +51,28 @@ exports.getTrainingById = async (req, res) => {
 // @access  Private/Admin
 exports.createTraining = async (req, res) => {
   try {
-    const { title, description, duration, price, discount, featured, order } = req.body;
+    const { 
+      title, description, duration, price, discount, featured, order, learningTopics,
+      instructor 
+    } = req.body;
+    
+    // Prepare instructor data
+    const instructorData = instructor ? {
+      name: instructor.name || '',
+      title: instructor.title || '',
+      bio: instructor.bio || '',
+      imageUrl: 'default-instructor.jpg'
+    } : {
+      name: '',
+      title: '',
+      bio: '',
+      imageUrl: 'default-instructor.jpg'
+    };
+    
+    // Handle instructor image if uploaded
+    if (req.files && req.files.instructorImage) {
+      instructorData.imageUrl = req.files.instructorImage[0].filename;
+    }
     
     // Create new training
     const training = await Training.create({
@@ -62,8 +83,10 @@ exports.createTraining = async (req, res) => {
       discount: discount || 0,
       featured: featured || false,
       order: order || 0,
-      // Handle image upload if implemented with multer
-      imageUrl: req.file ? req.file.filename : 'default-training.jpg'
+      learningTopics: learningTopics || [],
+      instructor: instructorData,
+      // Handle image upload
+      imageUrl: req.files && req.files.image ? req.files.image[0].filename : 'default-training.jpg'
     });
     
     res.status(201).json(training);
@@ -78,7 +101,10 @@ exports.createTraining = async (req, res) => {
 // @access  Private/Admin
 exports.updateTraining = async (req, res) => {
   try {
-    const { title, description, duration, price, discount, featured, order } = req.body;
+    const { 
+      title, description, duration, price, discount, featured, order, learningTopics,
+      instructor 
+    } = req.body;
     
     // Find training by id
     const training = await Training.findById(req.params.id);
@@ -95,9 +121,30 @@ exports.updateTraining = async (req, res) => {
     training.discount = discount !== undefined ? discount : training.discount;
     training.featured = featured !== undefined ? featured : training.featured;
     training.order = order !== undefined ? order : training.order;
+    training.learningTopics = learningTopics || training.learningTopics;
+    
+    // Update instructor fields
+    if (instructor) {
+      training.instructor = {
+        ...training.instructor,
+        name: instructor.name !== undefined ? instructor.name : training.instructor?.name,
+        title: instructor.title !== undefined ? instructor.title : training.instructor?.title,
+        bio: instructor.bio !== undefined ? instructor.bio : training.instructor?.bio
+      };
+    }
     
     // Handle image upload if present
-    if (req.file) {
+    if (req.files && req.files.image) {
+      // Delete old image if not default
+      if (training.imageUrl !== 'default-training.jpg') {
+        const imagePath = path.join(__dirname, '../../uploads', training.imageUrl);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      }
+      training.imageUrl = req.files.image[0].filename;
+    } else if (req.file) {
+      // Handle single file upload
       // Delete old image if not default
       if (training.imageUrl !== 'default-training.jpg') {
         const imagePath = path.join(__dirname, '../../uploads', training.imageUrl);
@@ -106,6 +153,18 @@ exports.updateTraining = async (req, res) => {
         }
       }
       training.imageUrl = req.file.filename;
+    }
+
+    // Handle instructor image upload if present
+    if (req.files && req.files.instructorImage) {
+      // Delete old instructor image if not default
+      if (training.instructor && training.instructor.imageUrl && training.instructor.imageUrl !== 'default-instructor.jpg') {
+        const imagePath = path.join(__dirname, '../../uploads', training.instructor.imageUrl);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      }
+      training.instructor.imageUrl = req.files.instructorImage[0].filename;
     }
     
     // Save updated training

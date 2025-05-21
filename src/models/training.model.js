@@ -25,6 +25,28 @@ const trainingSchema = new mongoose.Schema(
       enum: ['Beginner', 'Intermediate', 'Advanced', 'All Levels'],
       default: 'All Levels'
     },
+    learningTopics: {
+      type: [String],
+      default: []
+    },
+    instructor: {
+      name: {
+        type: String,
+        default: ''
+      },
+      title: {
+        type: String,
+        default: ''
+      },
+      bio: {
+        type: String,
+        default: ''
+      },
+      imageUrl: {
+        type: String,
+        default: 'default-instructor.jpg'
+      }
+    },
     price: {
       type: Number,
       required: [true, 'Please add a price']

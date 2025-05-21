@@ -18,7 +18,8 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'training-' + uniqueSuffix + path.extname(file.originalname));
+    const prefix = file.fieldname === 'instructorImage' ? 'instructor-' : 'training-';
+    cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -36,6 +37,12 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB max size
 });
 
+// Configure upload fields for multiple files
+const uploadFields = upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'instructorImage', maxCount: 1 }
+]);
+
 const router = express.Router();
 
 // Public routes
@@ -44,8 +51,8 @@ router.get('/featured', getFeaturedTrainings);
 router.get('/:id', getTrainingById);
 
 // Protected routes (admin only)
-router.post('/', protect, isAdmin, upload.single('image'), createTraining);
-router.put('/:id', protect, isAdmin, upload.single('image'), updateTraining);
+router.post('/', protect, isAdmin, uploadFields, createTraining);
+router.put('/:id', protect, isAdmin, uploadFields, updateTraining);
 router.delete('/:id', protect, isAdmin, deleteTraining);
 
 module.exports = router; 
