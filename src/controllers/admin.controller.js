@@ -3,48 +3,138 @@ const Service = require('../models/service.model');
 const Training = require('../models/training.model');
 const Review = require('../models/review.model');
 const Contact = require('../models/contact.model');
+const Booking = require('../models/booking.model');
+const MenuItem = require('../models/menuItem.model');
+const jwt = require('jsonwebtoken');
 
-// @desc    Get admin dashboard data
+// @desc    Login admin
+// @route   POST /api/admin/login
+// @access  Public
+exports.loginAdmin = async (req, res) => {
+  try {
+    console.log('Login attempt for:', req.body.email);
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      console.log('Missing credentials');
+      return res.status(400).json({ 
+        success: false,
+        message: 'Please provide both email and password' 
+      });
+    }
+
+    // Check for user email
+    const user = await User.findOne({ email }).select('+password');
+    console.log('User found:', user ? 'Yes' : 'No');
+
+    if (!user) {
+      console.log('User not found');
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
+      });
+    }
+
+    // Check if user is admin
+    console.log('Is admin:', user.isAdmin);
+    if (!user.isAdmin) {
+      console.log('User is not admin');
+      return res.status(403).json({ 
+        success: false,
+        message: 'Not authorized as admin' 
+      });
+    }
+
+    // Check password
+    const isMatch = await user.matchPassword(password);
+    console.log('Password match:', isMatch);
+
+    if (!isMatch) {
+      console.log('Password mismatch');
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
+      });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    // Send response
+    console.log('Login successful');
+    res.json({
+      success: true,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during login' 
+    });
+  }
+};
+
+// @desc    Get dashboard data
 // @route   GET /api/admin/dashboard
 // @access  Private/Admin
 exports.getDashboardData = async (req, res) => {
   try {
-    // Get counts of each model
-    const servicesCount = await Service.countDocuments();
-    const trainingsCount = await Training.countDocuments();
-    const reviewsCount = await Review.countDocuments();
-    const pendingReviews = await Review.countDocuments({ approved: false });
-    const contactsCount = await Contact.countDocuments();
-    const newContactsCount = await Contact.countDocuments({ status: 'new' });
-    const usersCount = await User.countDocuments();
+    // Get counts
+    const counts = {
+      trainings: await Training.countDocuments(),
+      reviews: await Review.countDocuments(),
+      pendingReviews: await Review.countDocuments({ status: 'pending' }),
+      contacts: await Contact.countDocuments(),
+      newContacts: await Contact.countDocuments({ status: 'new' }),
+      users: await User.countDocuments(),
+      bookings: await Booking.countDocuments(),
+      pendingBookings: await Booking.countDocuments({ status: 'pending' }),
+      menuItems: await MenuItem.countDocuments(),
+      featuredMenuItems: await MenuItem.countDocuments({ featured: true })
+    };
 
-    // Get recent contact submissions
+    // Get recent data
     const recentContacts = await Contact.find()
       .sort({ createdAt: -1 })
       .limit(5);
 
-    // Get recent reviews
-    const recentReviews = await Review.find()
+    const recentBookings = await Booking.find()
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    const recentMenuItems = await MenuItem.find()
       .sort({ createdAt: -1 })
       .limit(5);
 
     res.json({
-      counts: {
-        services: servicesCount,
-        trainings: trainingsCount,
-        reviews: reviewsCount,
-        pendingReviews,
-        contacts: contactsCount,
-        newContacts: newContactsCount,
-        users: usersCount
-      },
+      counts,
       recentContacts,
-      recentReviews
+      recentBookings,
+      recentMenuItems
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server Error' });
   }
+};
+
+// Generate JWT
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '30d'
+  });
 };
 
 // @desc    Get all users (admin only)
@@ -117,31 +207,57 @@ exports.createUser = async (req, res) => {
 // @access  Private/Admin
 exports.updateUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    console.log('Updating user:', req.params.id);
+    console.log('Update data:', req.body);
 
-    if (user) {
-      user.name = req.body.name || user.name;
-      user.email = req.body.email || user.email;
-      user.isAdmin = req.body.isAdmin !== undefined ? req.body.isAdmin : user.isAdmin;
+    // Find user with password field
+    const user = await User.findById(req.params.id).select('+password');
 
-      if (req.body.password) {
-        user.password = req.body.password;
-      }
-
-      const updatedUser = await user.save();
-
-      res.json({
-        _id: updatedUser._id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        isAdmin: updatedUser.isAdmin
-      });
-    } else {
-      res.status(404).json({ message: 'User not found' });
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ message: 'User not found' });
     }
+
+    // Check if email is being changed and if it's already taken
+    if (req.body.email && req.body.email !== user.email) {
+      const emailExists = await User.findOne({ 
+        email: req.body.email,
+        _id: { $ne: user._id } // Exclude current user from check
+      });
+      
+      if (emailExists) {
+        console.log('Email already exists');
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+    }
+
+    // Update basic fields
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+    
+    // Only update isAdmin if the user is not updating themselves
+    if (req.user._id.toString() !== user._id.toString()) {
+      user.isAdmin = req.body.isAdmin !== undefined ? req.body.isAdmin : user.isAdmin;
+    }
+
+    // Update password if provided
+    if (req.body.password) {
+      user.password = req.body.password;
+    }
+
+    const updatedUser = await user.save();
+    console.log('User updated successfully');
+
+    // Send response without password
+    res.json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      isAdmin: updatedUser.isAdmin
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server Error' });
+    console.error('Update error:', error);
+    res.status(500).json({ message: 'Server Error during update' });
   }
 };
 
@@ -153,6 +269,11 @@ exports.deleteUser = async (req, res) => {
     const user = await User.findById(req.params.id);
 
     if (user) {
+      // Check if user is an admin
+      if (user.isAdmin) {
+        return res.status(400).json({ message: 'Admin users cannot be deleted' });
+      }
+
       if (user._id.equals(req.user._id)) {
         return res.status(400).json({ message: 'Cannot delete yourself' });
       }

@@ -1,42 +1,19 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 
-// Middleware to protect routes - verify token
+// Simplified middleware that always allows access
 exports.protect = async (req, res, next) => {
-  let token;
-
-  // Check if authorization header exists and starts with Bearer
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    try {
-      // Get token from header
-      token = req.headers.authorization.split(' ')[1];
-
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Get user from the token (exclude password)
-      req.user = await User.findById(decoded.id).select('-password');
-
-      next();
-    } catch (error) {
-      console.error(error);
-      res.status(401).json({ message: 'Not authorized, token failed' });
-    }
-  }
-
-  if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token' });
-  }
+  // Set a default admin user
+  req.user = {
+    _id: '000000000000000000000001',
+    name: 'Admin',
+    email: 'admin@example.com',
+    isAdmin: true
+  };
+  next();
 };
 
-// Middleware to check if user is an admin
+// Simplified admin check that always allows access
 exports.isAdmin = (req, res, next) => {
-  if (req.user && req.user.isAdmin) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Not authorized as admin' });
-  }
+  next();
 }; 

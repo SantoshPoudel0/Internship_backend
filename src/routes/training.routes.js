@@ -37,12 +37,6 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB max size
 });
 
-// Configure upload fields for multiple files
-const uploadFields = upload.fields([
-  { name: 'image', maxCount: 1 },
-  { name: 'instructorImage', maxCount: 1 }
-]);
-
 const router = express.Router();
 
 // Public routes
@@ -51,8 +45,14 @@ router.get('/featured', getFeaturedTrainings);
 router.get('/:id', getTrainingById);
 
 // Protected routes (admin only)
-router.post('/', protect, isAdmin, uploadFields, createTraining);
-router.put('/:id', protect, isAdmin, uploadFields, updateTraining);
+router.post('/', protect, isAdmin, upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'instructorImage', maxCount: 1 }
+]), createTraining);
+router.put('/:id', protect, isAdmin, upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'instructorImage', maxCount: 1 }
+]), updateTraining);
 router.delete('/:id', protect, isAdmin, deleteTraining);
 
 module.exports = router; 

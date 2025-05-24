@@ -25,6 +25,15 @@ const trainingSchema = new mongoose.Schema(
       enum: ['Beginner', 'Intermediate', 'Advanced', 'All Levels'],
       default: 'All Levels'
     },
+    format: {
+      type: String,
+      enum: ['Physical', 'Online', 'Physical/Online Class', 'Hybrid'],
+      default: 'Physical/Online Class'
+    },
+    careerProspect: {
+      type: String,
+      default: 'Industry Professional'
+    },
     learningTopics: {
       type: [String],
       default: []

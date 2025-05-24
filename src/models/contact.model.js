@@ -15,6 +15,15 @@ const contactSchema = new mongoose.Schema(
         'Please add a valid email'
       ]
     },
+    phone: {
+      type: String,
+      required: [true, 'Please add your phone number'],
+      trim: true,
+      match: [
+        /^[+]?[\s./0-9()-]+$/,
+        'Please provide a valid phone number'
+      ]
+    },
     subject: {
       type: String,
       required: [true, 'Please add a subject'],

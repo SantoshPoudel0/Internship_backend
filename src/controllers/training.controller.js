@@ -52,7 +52,7 @@ exports.getTrainingById = async (req, res) => {
 exports.createTraining = async (req, res) => {
   try {
     const { 
-      title, description, duration, price, discount, featured, order, learningTopics,
+      title, description, duration, level, format, careerProspect, price, discount, featured, order, learningTopics,
       instructor 
     } = req.body;
     
@@ -79,6 +79,9 @@ exports.createTraining = async (req, res) => {
       title,
       description,
       duration,
+      level: level || 'All Levels',
+      format: format || 'Physical/Online Class',
+      careerProspect: careerProspect || 'Industry Professional',
       price,
       discount: discount || 0,
       featured: featured || false,
@@ -102,7 +105,7 @@ exports.createTraining = async (req, res) => {
 exports.updateTraining = async (req, res) => {
   try {
     const { 
-      title, description, duration, price, discount, featured, order, learningTopics,
+      title, description, duration, level, format, careerProspect, price, discount, featured, order, learningTopics,
       instructor 
     } = req.body;
     
@@ -117,6 +120,9 @@ exports.updateTraining = async (req, res) => {
     training.title = title || training.title;
     training.description = description || training.description;
     training.duration = duration || training.duration;
+    training.level = level || training.level;
+    training.format = format || training.format;
+    training.careerProspect = careerProspect || training.careerProspect;
     training.price = price !== undefined ? price : training.price;
     training.discount = discount !== undefined ? discount : training.discount;
     training.featured = featured !== undefined ? featured : training.featured;

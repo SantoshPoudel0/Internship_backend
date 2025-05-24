@@ -29,7 +29,11 @@ const bookingSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: [true, 'Please provide your phone number'],
-      trim: true
+      trim: true,
+      match: [
+        /^[+]?[\s./0-9()-]+$/,
+        'Please provide a valid phone number'
+      ]
     },
     message: {
       type: String,
